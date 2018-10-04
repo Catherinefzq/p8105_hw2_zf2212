@@ -1,69 +1,181 @@
 ---
 title: "P8105_hw2_zf2212"
-author: "Catherine"
+author: "Zhiqian Fang"
 date: "9/28/2018"
 output: html_document
 ---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  fig.width = 6,
+  fig.asp = .6,
+  out.width = "90%"
+)
+```
+
 ## Problem 1
-```{r import data}
+This problem focuses on NYC Transit data; in particular, this CSV file contains information related to each entrance and exit for each subway station in NYC.
+
+```{r import nyc data}
+# Load the library
 library(tidyverse)
 
+# Read and clean the data, retain useful variables, convert the entry variable
 nyc_data = read_csv(file = "./data/NYC_Transit_Subway_Entrance_And_Exit_Data.csv") %>% 
   janitor::clean_names() %>%
-  select(line, station_name, station_latitude, station_longitude, route1:route11, entry, vending, entrance_type, ada, ada_notes) %>% 
+  select(line, station_name, station_latitude, station_longitude, route1:route11, entry, vending, entrance_type, ada) %>% 
   mutate(entry, entry = ifelse(entry == "YES", TRUE, FALSE)) 
 ```
-The dataset above contains information about NYC transit, including line, station name, station latitude, station longitude, routes, entry, vending, entrance type and ADA compliance information. 
-I gather the route1 to route11 information. I retain useful data. Convert the entry variable from YES or NO to a logical variable.
-The dimension of the dataset is `r dim(nyc_data)`.
+The dataset above contains __information about NYC transit__, including line, station name, station latitude, station longitude, routes, entry, vending, entrance type and ADA compliance information. 
 
-```{r distinct station}
-distinct_station = distinct(nyc_data, nyc_data$line, nyc_data$station_name, .keep_all = TRUE)  
+I retain useful data. Convert the entry variable from YES or NO to a logical variable.
+
+The __dimension__ of the dataset is `r dim(nyc_data)`. 
+
+These data is __not__ considered as clean data: First, not all the columns are variables, such as route1 to 11. Second, not all rows are observations. Third, there are missing values in the datasets and not every value has a cell. 
+
+
+```{r nyc distinct station}
+# Distinct station by line and station name.
+distinct_station = distinct(nyc_data, nyc_data$line, nyc_data$station_name, .keep_all = TRUE) 
+# Count the station number, ada compliant and vending allos
 station_number = nrow(distinct_station)
 ada_compliant = sum(distinct_station$ada)  
 vending_allow = nrow(filter(distinct_station, entry == TRUE, vending == "NO")) / station_number
 ```
 
-There are `r station_number` distinct stations. 
-Among these stations, `r ada_compliant` are ADA compliant. 
-`r vending_allow` of station entrances / exits without vending allow entrance.
+There are **`r station_number`** distinct stations. 
 
-```{r A train}
+Among these stations, **`r ada_compliant`** are ADA compliant. 
+
+**`r vending_allow`** of station entrances / exits without vending allow entrance.
+
+```{r distinct A train}
+# Count the distinct station servered A train
 distinct_a = gather(nyc_data, key = route, value = line_name, route1:route11, na.rm = TRUE) %>% 
-filter(line_name == "A")
+  filter(line_name == "A") %>% 
+  distinct(line, station_name, .keep_all = TRUE) 
 number_a = nrow(distinct_a)
 ada_a = nrow(filter(distinct_a, ada == TRUE))
 ```
-There are `r number_a` stations serve the A train. 
-Of the stations that serve the A train, there are `r ada_a` are ADA compliant.
+There are **`r number_a`** stations serve the A train. 
+
+Of the stations that serve the A train, there are **`r ada_a`** are ADA compliant.
 
 ## Problem 2
-```{r mtw data import}
-mtw_data = readxl::read_xlsx("./data/HealthyHarborWaterWheelTotals2017-9-26.xlsx", range = cellranger::cell_cols("Mr. Trash Wheel!A:N")) %>% 
+This problem uses the Mr. Trash Wheel dataset, available as an Excel file on the course website. Please use the  HealthyHarborWaterWheelTotals2017-9-26.xlsx version.
+
+```{r data import}
+# Import and clean Mr. Trash Wheel data
+mtw_data = readxl::read_xlsx("./data/HealthyHarborWaterWheelTotals2018-7-28.xlsx", range = cellranger::cell_cols("Mr. Trash Wheel!A:N")) %>% 
   janitor::clean_names() %>% 
   na.omit(dumpster) %>% 
   mutate(sports_balls, sports_balls = round(sports_balls,0))
 ```
 
-```{r precipitation data}
-# Import data of 2016 and 2017
-data_16 = readxl::read_xlsx("./data/HealthyHarborWaterWheelTotals2017-9-26.xlsx", range = "2016 Precipitation!A2:B14") %>% 
-  mutate(year = 2016) %>% 
-  janitor::clean_names()
 
-data_17 = readxl::read_xlsx("./data/HealthyHarborWaterWheelTotals2017-9-26.xlsx", range = "2017 Precipitation!A2:B14") %>% 
-  mutate(year = 2017) %>% 
-  janitor::clean_names()
+
+```{r 1617precipitation data}
+# Import and clean data of 2016 
+data_16 = readxl::read_xlsx("./data/HealthyHarborWaterWheelTotals2018-7-28.xlsx", range = "2016 Precipitation!A2:B14") %>% 
+  janitor::clean_names()  %>% 
+  filter(!is.na(total) & !is.na(month)) %>% 
+  mutate(year = 2016)
+
+# Import and clean data of 2017
+data_17 = readxl::read_xlsx("./data/HealthyHarborWaterWheelTotals2018-7-28.xlsx", range = "2017 Precipitation!A2:B14") %>% 
+  janitor::clean_names() %>% 
+  filter(!is.na(total) & !is.na(month)) %>% 
+  mutate(year = 2017) 
+
 # Combine datasets
 data_1617 = rbind(data_16,data_17) %>% 
   mutate(month, month = month.name[month])
 ```
 
-```{r}
+#### Mr. Trash Wheel dataset
+There are **`r nrow(mtw_data)` **observations and **`r ncol(mtw_data)` **variables in the dataset. Key variables include **date**, **weight_tons** and **volume_cubic_yards**. 
 
+Variable **weight_tons** and **volume_cubic_yards** show the amount of trash the device receives in each day. As the amount of trash collected is highly depend on rainfall, variable **date** can reflect the weather information. For example, due to the rainfalls, there are more dumpsters filled during the summer seasons than winter seasons. Therefore, **date** should be taken into account when we are looking at the dataset. 
+
+The **median** number of **sports balls** in dumpster in 2016 is **`r median(filter(mtw_data, year == "2016")$sports_balls)`**.
+
+#### Precipitation data for 2016 and 2017
+There are **`r nrow(data_1617)` **observations and **`r ncol(data_1617)` **variables in the dataset. Key variables include **month** and **total**. 
+
+The total of precipitation was accumulated through months. We can find that the number in **total** went up and achieved a high point in some months. Then, the number began to drop from the next month. The **total precipitation in 2017** is **`r sum(data_17$total)`**.
+
+
+## Problem 3
+This problem uses the BRFSS data. DO NOT include this dataset in your local data directory; instead, load the data from the  p8105.datasets package.
+
+```{r import data}
+# Import brfss data
 devtools::install_github("p8105/p8105.datasets")
 library(p8105.datasets)
 data(brfss_smart2010)
+
+# format the data and retain the useful variables
+brfss_data = janitor::clean_names(brfss_smart2010) %>% 
+  filter(topic == "Overall Health") %>% 
+  select(year, locationabbr, locationdesc, response, data_value) %>% 
+  spread(key = response, value = data_value) %>%  
+  mutate(excellent_verygood = (Excellent + `Very good`)/100)
 ```
 
+
+```{r count locations}
+# Counting unique locations
+number_location = nrow(distinct(brfss_data, locationdesc))
+
+# Counting states
+number_state = nrow(distinct(brfss_data, locationabbr))
+
+# Find the most observed state
+most_state = brfss_data %>% 
+  group_by(locationabbr) %>% 
+  summarize(number = n()) %>% 
+  filter(number == max(number))
+```
+There are **`r number_location`** unique locations included in the dataset. All of the **`r number_state`** states are represented. The **most observed** state is **`r most_state`** times observed. 
+
+```{r Count median}
+# Filter the data of 2002
+brfss02 = brfss_data %>% 
+  filter(year == 2002)
+
+# Count the median of 2002
+med_02 = median(brfss02$Excellent, na.rm = TRUE)
+```
+The **median** of the “Excellent” response value is `r med_02`
+
+```{r Histogram}
+# Create histogram of excellent response values
+ggplot(brfss02, aes(x = Excellent)) +
+  geom_histogram() +
+  labs(x = "Excellent Response Values", y = "Number of Locations", title = "Histogram of Excellent Response Values in 2002") +
+  theme(plot.title = element_text(hjust=0.5))
+```
+
+
+In the __Histogram of Excellent Response Values in 2002__, the x axis represents the __excellent response values__ and the y axis represents the __number of locations__ that got the corresponding values. From the histogram, we can see that the excellent response values in most locations are between 15 to 30. As the mean (`r mean(brfss02$Excellent, na.rm = TRUE)`) is slightly larger than median (`r med_02`), the histogram is slightly right skewed.
+
+
+
+```{r Scatterplot}
+# filter the data
+data_nycqc = brfss_data %>% 
+  filter(locationdesc == "NY - New York County"| locationdesc == "NY - Queens County")
+
+# Create scatterplot of excellent response values in NYC and QC
+ggplot(data_nycqc, aes(x = year, y = Excellent, color = locationdesc)) +
+  geom_point(size = 3, alpha = .8) + 
+  labs(x = "Year", y = "Proportion of Excellent Response", title = "Scatterplot of Excellent Response Value in NYC and QC") +
+  theme_bw() +
+  theme(legend.position = "bottom", plot.title = element_text(hjust=0.5))
+```
+
+
+In the __Scatterplot of Excellent Response Value in NYC and QC__,  the x axis represents _year_ and the y axis represents the _proportion of excellent response_. The blue points represent _Queens County_ in New York State and the pink points represent the _New York County_ in New York State. 
+
+We can see that the proportion of excellent response of New York County from 2002 to 2010 are all _higher_ than Queens County.
